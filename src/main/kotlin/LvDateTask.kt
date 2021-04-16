@@ -3,6 +3,7 @@ import okhttp3.Request
 import org.jsoup.Jsoup
 import org.jsoup.nodes.Element
 import org.jsoup.parser.Parser
+import org.jsoup.select.Elements
 import java.io.IOException
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
@@ -18,8 +19,6 @@ class LvDateTask(private val courseNumber: String) : Callable<List<LvDate>?> {
             .url("https://m1-ufind.univie.ac.at/courses/${this.courseNumber}/$SEMESTER")
             .build()
 
-        val lvDates = ArrayList<LvDate>()
-
         try {
             httpClient.newCall(request).execute().use { response ->
                 checkResponse(response)
@@ -28,18 +27,7 @@ class LvDateTask(private val courseNumber: String) : Callable<List<LvDate>?> {
                 val doc = Jsoup.parse(xml, "/", Parser.xmlParser())
                 val group = doc.selectFirst("course groups group") ?: return null
 
-                group.select("wwlong wwevent").forEach { event ->
-                    val start = this.toLocalDate(event.attr("begin"))
-                    if (start.isAfter(LocalDateTime.now())) {
-                        val location = this.extractLocation(event)
-                        val end = this.toLocalDate(event.attr("end"))
-                        lvDates.add(LvDate(start, end, location))
-
-                        //return as max shown Dates collected
-                        if (lvDates.size >= MAX_DATES) return lvDates
-                    }
-                }
-
+                return this.extractFromEvent(group.select("wwlong wwevent"))
             }
         } catch (nEx: NetworkException) {
             throw nEx
@@ -48,16 +36,13 @@ class LvDateTask(private val courseNumber: String) : Callable<List<LvDate>?> {
             nEx.initCause(ex)
             throw nEx
         }
-
-        return lvDates
     }
 
     private fun extractLocation(eventXml: Element): String {
         return eventXml.select("location")?.joinToString(", ") {
-            var location = ""
             val room = it.selectFirst("room")?.text() ?: ""
 
-            location = if (room == "Digital" || room == "Hybride Lehre") {
+            val location = if (room == "Digital" || room == "Hybride Lehre") {
                 room
             } else {
                 val address = it.selectFirst("address")?.text() ?: ""
@@ -70,5 +55,24 @@ class LvDateTask(private val courseNumber: String) : Callable<List<LvDate>?> {
 
     private fun toLocalDate(dateString: String): LocalDateTime {
         return LocalDateTime.parse(dateString, DateTimeFormatter.ISO_OFFSET_DATE_TIME)
+    }
+
+    private fun extractFromEvent(events: Elements): List<LvDate>? {
+        if (events.size < 1) return null
+
+        val lvDates = ArrayList<LvDate>()
+        for (event in events) {
+            val start = this.toLocalDate(event.attr("begin"))
+            if (start.isAfter(LocalDateTime.now())) {
+                val location = this.extractLocation(event)
+                val end = this.toLocalDate(event.attr("end"))
+                lvDates.add(LvDate(start, end, location))
+
+                //return as max shown Dates collected
+                if (lvDates.size >= MAX_DATES) return lvDates
+            }
+        }
+
+        return lvDates
     }
 }

@@ -131,7 +131,7 @@ fun getLvDates(courseOverviewPath: String): List<LvDate> {
     try {
         while (!threadPool.isTerminated) {
             val lvs: List<LvDate>? = service.take().get()
-            if(lvs?.isNotEmpty() == true){
+            if (lvs?.isNotEmpty() == true) {
                 lvDates.addAll(lvs)
             }
         }
@@ -148,7 +148,7 @@ fun getLvDates(courseOverviewPath: String): List<LvDate> {
 
     lvDates.sortBy { it.start }
 
-    if(lvDates.size <= MAX_DATES)
+    if (lvDates.size <= MAX_DATES)
         return lvDates
 
     return lvDates.subList(0, MAX_DATES)
