@@ -12,7 +12,10 @@ repositories {
     mavenCentral()
 }
 
-
+dependencies{
+    implementation("com.squareup.okhttp3:okhttp:4.9.1")
+    implementation("org.jsoup:jsoup:1.13.1")
+}
 
 tasks.withType<KotlinCompile>() {
     kotlinOptions.jvmTarget = "1.8"
