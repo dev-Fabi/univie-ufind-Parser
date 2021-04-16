@@ -102,8 +102,8 @@ fun getLvDates(courseOverviewPath: String): List<LvDate> {
         .url("$BASE_URL/cache/de/$courseOverviewPath.html")
         .build()
 
-    //use one thread per CPU
-    val threadPool: ExecutorService = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors())
+    //use five threads per CPU (as tasks are IO "intensive")
+    val threadPool: ExecutorService = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors()*5)
     val service: CompletionService<List<LvDate>> = ExecutorCompletionService(threadPool)
 
     try {
