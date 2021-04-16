@@ -145,6 +145,10 @@ fun getLvDates(courseOverviewPath: String): List<LvDate> {
     }
 
     lvDates.sortBy { it.start }
+
+    if(lvDates.size <= MAX_DATES)
+        return lvDates
+
     return lvDates.subList(0, MAX_DATES)
 }
 
