@@ -130,8 +130,10 @@ fun getLvDates(courseOverviewPath: String): List<LvDate> {
     val lvDates = ArrayList<LvDate>()
     try {
         while (!threadPool.isTerminated) {
-            val future = service.take()
-            lvDates.addAll(future.get())
+            val lvs: List<LvDate>? = service.take().get()
+            if(lvs?.isNotEmpty() == true){
+                lvDates.addAll(lvs)
+            }
         }
     } catch (eEx: ExecutionException) {
         //stop all other tasks as network-problems will effect all of them
