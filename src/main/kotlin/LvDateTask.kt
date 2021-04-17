@@ -8,6 +8,7 @@ import java.io.IOException
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.util.concurrent.Callable
+import kotlin.random.Random
 
 
 class LvDateTask(private val courseNumber: String) : Callable<List<LvDate>?> {
@@ -16,7 +17,7 @@ class LvDateTask(private val courseNumber: String) : Callable<List<LvDate>?> {
     override fun call(): List<LvDate>? {
         val httpClient = OkHttpClient()
         val request = Request.Builder()
-            .url("https://m1-ufind.univie.ac.at/courses/${this.courseNumber}/$SEMESTER")
+            .url("${INSTANCES[Random.nextInt(INSTANCES.size)]}/courses/${this.courseNumber}/$SEMESTER")
             .build()
 
         try {

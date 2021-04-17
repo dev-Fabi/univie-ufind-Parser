@@ -11,8 +11,9 @@ import kotlin.system.exitProcess
 const val BASE_URL = "https://ufind.univie.ac.at"
 const val SEMESTER = "2021S"
 const val MAX_DATES = 10
+val INSTANCES = arrayOf("https://m1-ufind.univie.ac.at/","https://m2-ufind.univie.ac.at/")
 
-val httpClient = OkHttpClient()
+private val httpClient = OkHttpClient()
 
 fun main(args: Array<String>) {
     if (args.size != 1 || !Regex("^[0-9]?[0-9].[0-9]{2}$").matches(args[0])) {
