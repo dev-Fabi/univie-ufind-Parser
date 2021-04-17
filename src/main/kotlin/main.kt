@@ -18,7 +18,7 @@ private val httpClient = OkHttpClient()
 
 fun main(args: Array<String>) {
     if (args.size != 1 || !Regex("^[0-9]?[0-9].[0-9]{2}$").matches(args[0])) {
-        println("Argument required!")
+        println("Required argument not specified or invalid!")
         println("Please specify a direction of study listed on https://ufind.univie.ac.at/de/vvz.html")
         println("For example '0.01' for individual studies")
         exitProcess(1)
