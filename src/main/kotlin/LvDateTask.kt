@@ -1,5 +1,6 @@
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import org.jsoup.HttpStatusException
 import org.jsoup.Jsoup
 import org.jsoup.nodes.Element
 import org.jsoup.parser.Parser
@@ -13,29 +14,21 @@ import kotlin.random.Random
 
 class LvDateTask(private val courseNumber: String) : Callable<List<LvDate>?> {
 
-    @Throws(NetworkException::class)
+    @Throws(HttpStatusException::class, IOException::class)
     override fun call(): List<LvDate>? {
         val httpClient = OkHttpClient()
         val request = Request.Builder()
             .url("${INSTANCES[Random.nextInt(INSTANCES.size)]}/courses/${this.courseNumber}/$SEMESTER")
             .build()
 
-        try {
-            httpClient.newCall(request).execute().use { response ->
-                checkResponse(response)
+        httpClient.newCall(request).execute().use { response ->
+            checkResponse(response)
 
-                val xml = response.body?.string() ?: return null
-                val doc = Jsoup.parse(xml, "/", Parser.xmlParser())
-                val group = doc.selectFirst("course groups group") ?: return null
+            val xml = response.body?.string() ?: return null
+            val doc = Jsoup.parse(xml, "/", Parser.xmlParser())
+            val group = doc.selectFirst("course groups group") ?: return null
 
-                return this.extractFromEvent(group.select("wwlong wwevent"))
-            }
-        } catch (nEx: NetworkException) {
-            throw nEx
-        } catch (ex: IOException) {
-            val nEx = NetworkException(ex.message)
-            nEx.initCause(ex)
-            throw nEx
+            return this.extractFromEvent(group.select("wwlong wwevent"))
         }
     }
 

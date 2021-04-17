@@ -1,6 +1,7 @@
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Response
+import org.jsoup.HttpStatusException
 import org.jsoup.Jsoup
 import java.io.IOException
 import java.time.format.DateTimeFormatter
@@ -11,7 +12,7 @@ import kotlin.system.exitProcess
 const val BASE_URL = "https://ufind.univie.ac.at"
 const val SEMESTER = "2021S"
 const val MAX_DATES = 10
-val INSTANCES = arrayOf("https://m1-ufind.univie.ac.at/","https://m2-ufind.univie.ac.at/")
+val INSTANCES = arrayOf("https://m1-ufind.univie.ac.at/", "https://m2-ufind.univie.ac.at/")
 
 private val httpClient = OkHttpClient()
 
@@ -48,82 +49,69 @@ fun main(args: Array<String>) {
                 lv.location
             )
         }
-    } catch (nEx: NetworkException) {
-        println("Network Error: ${nEx.message}")
+    } catch (httpEx: HttpStatusException) {
+        println("HTTP Error: ${httpEx.statusCode} ${httpEx.message} (${httpEx.url})")
+        exitProcess(2)
+    } catch (ioEx: IOException) {
+        println("IO Error (Network): ${ioEx.message}")
         exitProcess(2)
     }
 }
 
-@Throws(NetworkException::class)
+@Throws(HttpStatusException::class, IOException::class)
 fun getCourseOverviewPath(selectedCourseID: String): String? {
     val selectedMainCourseID = selectedCourseID.split('.')[0]
     val courseListRequest = Request.Builder()
         .url("$BASE_URL/cache/de/main.html")
         .build()
 
-    try {
-        httpClient.newCall(courseListRequest).execute().use { response ->
-            checkResponse(response)
+    httpClient.newCall(courseListRequest).execute().use { response ->
+        checkResponse(response)
 
-            val doc = Jsoup.parse(response.body?.string() ?: "")
+        val doc = Jsoup.parse(response.body?.string() ?: "")
 
-            val elements = doc.select(".usse-id-vvz")
-            for (element in elements) {
-                val courseID: String? = element.selectFirst("div div a")?.text()?.split(' ')?.get(0)
-                if (courseID == null || courseID.split('.')[0] != selectedMainCourseID) {
-                    continue
-                }
+        val elements = doc.select(".usse-id-vvz")
+        for (element in elements) {
+            val courseID: String? = element.selectFirst("div div a")?.text()?.split(' ')?.get(0)
+            if (courseID == null || courseID.split('.')[0] != selectedMainCourseID) {
+                continue
+            }
 
-                for (courseLink in element.select("div div a")) {
-                    if (courseLink.text().split(' ')[0] == selectedCourseID) {
-                        val pattern = Pattern.compile("(?<=path=)[0-9]*")
-                        val matcher = pattern.matcher(courseLink.attr("href"))
-                        if (matcher.find()) {
-                            println("Selected Course: ${courseLink.text()}")
-                            return matcher.group(0)
-                        }
+            for (courseLink in element.select("div div a")) {
+                if (courseLink.text().split(' ')[0] == selectedCourseID) {
+                    val pattern = Pattern.compile("(?<=path=)[0-9]*")
+                    val matcher = pattern.matcher(courseLink.attr("href"))
+                    if (matcher.find()) {
+                        println("Selected Course: ${courseLink.text()}")
+                        return matcher.group(0)
                     }
                 }
             }
         }
-    } catch (nEx: NetworkException) {
-        throw nEx
-    } catch (ex: IOException) {
-        val nEx = NetworkException(ex.message)
-        nEx.initCause(ex)
-        throw nEx
     }
 
     return null
 }
 
-@Throws(NetworkException::class)
+@Throws(HttpStatusException::class, IOException::class, ExecutionException::class)
 fun getLvDates(courseOverviewPath: String): List<LvDate> {
     val coursesRequest = Request.Builder()
         .url("$BASE_URL/cache/de/$courseOverviewPath.html")
         .build()
 
     //use five threads per CPU (as tasks are IO "intensive")
-    val threadPool: ExecutorService = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors()*5)
+    val threadPool: ExecutorService = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors() * 5)
     val service: CompletionService<List<LvDate>> = ExecutorCompletionService(threadPool)
 
-    try {
-        httpClient.newCall(coursesRequest).execute().use { response ->
-            checkResponse(response)
+    httpClient.newCall(coursesRequest).execute().use { response ->
+        checkResponse(response)
 
-            val doc = Jsoup.parse(response.body?.string() ?: "")
+        val doc = Jsoup.parse(response.body?.string() ?: "")
 
-            //add separate task for each course
-            doc.select(".list.course .number").forEach {
-                service.submit(LvDateTask(it.text()))
-            }
+        //add separate task for each course
+        doc.select(".list.course .number").forEach {
+            service.submit(LvDateTask(it.text()))
         }
-    } catch (nEx: NetworkException) {
-        throw nEx
-    } catch (ex: IOException) {
-        val nEx = NetworkException(ex.message)
-        nEx.initCause(ex)
-        throw nEx
     }
 
     threadPool.shutdown()
@@ -140,8 +128,9 @@ fun getLvDates(courseOverviewPath: String): List<LvDate> {
         //stop all other tasks as network-problems will effect all of them
         threadPool.shutdownNow()
 
+        //rethrow original cause if set
         val e = eEx.cause
-        if (e is NetworkException)
+        if (e != null)
             throw e
 
         throw eEx
@@ -155,9 +144,9 @@ fun getLvDates(courseOverviewPath: String): List<LvDate> {
     return lvDates.subList(0, MAX_DATES)
 }
 
-@Throws(NetworkException::class)
+@Throws(HttpStatusException::class)
 fun checkResponse(response: Response) {
     if (response.code < 200 || response.code >= 300) {
-        throw NetworkException(response.message)
+        throw HttpStatusException(response.message, response.code, response.request.url.toString())
     }
 }
