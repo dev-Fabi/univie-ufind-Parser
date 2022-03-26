@@ -1,7 +1,7 @@
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
-    kotlin("jvm") version "1.4.32"
+    kotlin("jvm") version "1.6.0"
     application
 }
 
@@ -12,13 +12,15 @@ repositories {
     mavenCentral()
 }
 
-dependencies{
-    implementation("com.squareup.okhttp3:okhttp:4.9.1")
-    implementation("org.jsoup:jsoup:1.13.1")
+dependencies {
+    implementation("com.squareup.okhttp3:okhttp:4.9.3")
+    implementation("org.jsoup:jsoup:1.14.3")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.0")
 }
 
-tasks.withType<KotlinCompile>() {
+tasks.withType<KotlinCompile>().configureEach {
     kotlinOptions.jvmTarget = "1.8"
+    kotlinOptions.freeCompilerArgs += "-opt-in=org.mylibrary.OptInAnnotation"
 }
 
 application {
